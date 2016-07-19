@@ -1,5 +1,5 @@
 from inspect import ismethod
-from threading import RLock
+from threading import Lock
 
 from py4j.compat import range
 
@@ -24,7 +24,7 @@ class Signal(object):
     """
 
     def __init__(self):
-        self.lock = RLock()
+        self.lock = Lock()
         self.receivers = []
 
     def connect(self, receiver, unique_id=None):
@@ -70,13 +70,35 @@ class Signal(object):
                 if temp_id == full_id:
                     del self.receivers[index]
                     disconnected = True
+                    break
 
         return disconnected
 
-    def send(self, **kwargs):
+    def send(self, sender, **params):
+        """Sends the signal to all connected receivers.
+
+        If a receiver raises an error, the error is propagated back and
+        interrupts the sending processing. It is thus possible that not all
+        receivers will receive the signal.
+
+        :param: named parameters to send to the receivers.
+        :param: the sender of the signal. Optional.
+        :return: List of (receiver, response) from receivers.
+        :rtype: list
         """
+        responses = []
+        for receiver in self._get_receivers():
+            response = receiver(signal=self, sender=sender, **params)
+            responses.append((receiver, response))
+        return responses
+
+    def _get_receivers(self):
+        """Internal method that may in the future resolve weak references or
+        perform other work such as identifying dead receivers.
         """
-        pass
+        with self.lock:
+            receivers = [receiver[1] for receiver in self.receivers]
+        return receivers
 
     def _get_id(self, receiver, unique_id):
         if unique_id:

@@ -25,9 +25,11 @@ class Signal(object):
 
     def __init__(self):
         self.lock = Lock()
+        # Someday, we may implement caching, but in practice, we expect the
+        # number of receivers to be very small.
         self.receivers = []
 
-    def connect(self, receiver, unique_id=None):
+    def connect(self, receiver, sender=None, unique_id=None):
         """Registers a receiver for this signal.
 
         The receiver must be a callable (e.g., function or instance method)
@@ -38,10 +40,12 @@ class Signal(object):
         receiver is not registered more than once.
 
         :param receiver: The callable that will receive the signal.
+        :param sender: The sender to which the receiver will respond to. If
+            None, signals from any sender are sent to this receiver
         :param unique_id: The unique id of the callable to make sure it is not
             registered more than once. Optional.
         """
-        full_id = self._get_id(receiver, unique_id)
+        full_id = self._get_id(receiver, unique_id, sender)
 
         with self.lock:
             for receiver_id, _ in self.receivers:
@@ -50,7 +54,7 @@ class Signal(object):
             else:
                 self.receivers.append((full_id, receiver))
 
-    def disconnect(self, receiver, unique_id=None):
+    def disconnect(self, receiver, sender=None, unique_id=None):
         """Unregisters a receiver for this signal.
 
         :param receiver: The callable that was registered to receive the
@@ -61,7 +65,7 @@ class Signal(object):
             otherwise.
         :rtype: bool
         """
-        full_id = self._get_id(receiver, unique_id)
+        full_id = self._get_id(receiver, unique_id, sender)
         disconnected = False
 
         with self.lock:
@@ -87,22 +91,27 @@ class Signal(object):
         :rtype: list
         """
         responses = []
-        for receiver in self._get_receivers():
+        for receiver in self._get_receivers(sender):
             response = receiver(signal=self, sender=sender, **params)
             responses.append((receiver, response))
         return responses
 
-    def _get_receivers(self):
+    def _get_receivers(self, sender):
         """Internal method that may in the future resolve weak references or
         perform other work such as identifying dead receivers.
         """
+        sender_id = make_id(sender)
+        receivers = []
         with self.lock:
-            receivers = [receiver[1] for receiver in self.receivers]
+            for ((_, rsender_id), receiver) in self.receivers:
+                if rsender_id == NONE_ID or rsender_id == sender_id:
+                    receivers.append(receiver)
         return receivers
 
-    def _get_id(self, receiver, unique_id):
+    def _get_id(self, receiver, unique_id, sender):
+        sender_id = make_id(sender)
         if unique_id:
-            full_id = (make_id(receiver), unique_id)
+            full_id = (unique_id, sender_id)
         else:
-            full_id = (make_id(receiver), NONE_ID)
+            full_id = (make_id(receiver), sender_id)
         return full_id

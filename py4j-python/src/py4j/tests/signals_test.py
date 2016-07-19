@@ -10,6 +10,8 @@ class SignalTest(TestCase):
     def setUp(self):
         self.called = [0]
         self.called_kwargs = []
+        self.instance1 = object()
+        self.instance2 = object()
 
         # For easier access
         called = self.called
@@ -38,8 +40,9 @@ class SignalTest(TestCase):
         self.alert.connect(self.receiver1)
         self.alert.connect(self.receiver2.receiver2_method)
         self.alert.connect(self.receiver2.receiver2_method)
-        self.alert.connect(self.receiver1, "foo")
-        self.alert.connect(self.receiver1, "bar")
+        self.alert.connect(self.receiver1, unique_id="foo")
+        self.alert.connect(self.receiver1, sender=self.instance2,
+                           unique_id="bar")
         self.assertEqual(4, len(self.alert.receivers))
 
     def testDisconnect(self):
@@ -50,8 +53,15 @@ class SignalTest(TestCase):
         # Already disconnected
         self.assertFalse(self.alert.disconnect(self.receiver1))
 
-        self.assertTrue(self.alert.disconnect(self.receiver1, "foo"))
-        self.assertTrue(self.alert.disconnect(self.receiver1, "bar"))
+        self.assertTrue(self.alert.disconnect(self.receiver1, unique_id="foo"))
+
+        # Sender is part of the id
+        self.assertFalse(self.alert.disconnect(
+            self.receiver1, unique_id="bar"))
+
+        self.assertTrue(self.alert.disconnect(
+            self.receiver1, sender=self.instance2, unique_id="bar"))
+
         self.assertTrue(self.alert.disconnect(self.receiver2.receiver2_method))
 
         self.assertEqual(0, len(self.alert.receivers))
@@ -59,6 +69,14 @@ class SignalTest(TestCase):
     def testSend(self):
         self.testConnect()
         self.alert.send(SignalTest, param1="foo", param2=3)
+        self.assertEqual(3, self.called[0])
+        self.assertEqual(3, len(self.called_kwargs))
+        self.assertEqual([{"param1": "foo", "param2": 3}] * 3,
+                         self.called_kwargs)
+
+    def testSendToSender(self):
+        self.testConnect()
+        self.alert.send(self.instance2, param1="foo", param2=3)
         self.assertEqual(4, self.called[0])
         self.assertEqual(4, len(self.called_kwargs))
         self.assertEqual([{"param1": "foo", "param2": 3}] * 4,

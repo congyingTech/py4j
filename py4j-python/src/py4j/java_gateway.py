@@ -31,6 +31,7 @@ from py4j import protocol as proto
 from py4j.protocol import (
     Py4JError, Py4JNetworkError, escape_new_line, get_command_part,
     get_return_value, is_error, register_output_converter, smart_decode)
+from py4j.signals import Signal
 from py4j.version import __version__
 
 
@@ -50,6 +51,59 @@ DEFAULT_ACCEPT_TIMEOUT_PLACEHOLDER = "DEFAULT"
 DEFAULT_CALLBACK_SERVER_ACCEPT_TIMEOUT = 5
 PY4J_SKIP_COLLECTIONS = "PY4J_SKIP_COLLECTIONS"
 PY4J_TRUE = set(["yes", "y", "t", "true"])
+
+
+server_connection_stopped = Signal()
+"""Signal sent when a Python (Callback) Server connection is stopped.
+
+Will supply the ``connection`` argument, an instance of CallbackConnection.
+
+The sender for now is the CallbackServerParameters instance. Will be the
+CallbackServer instance in future versions.
+"""
+
+server_connection_started = Signal()
+"""Signal sent when a Python (Callback) Server connection is started.
+
+Will supply the ``connection`` argument, an instance of CallbackConnection.
+
+The sender is the CallbackServer instance.
+"""
+
+server_connection_error = Signal()
+"""Signal sent when a Python (Callback) Server encounters an error while
+waiting for a connection.
+
+Will supply the ``error`` argument, an instance of Exception.
+
+The sender is the CallbackServer instance.
+"""
+
+server_started = Signal()
+"""Signal sent when a Python (Callback) Server is started
+
+Will supply the ``server`` argument, an instance of CallbackServer
+
+The sender is the CallbackServer instance.
+"""
+
+server_stopped = Signal()
+"""Signal sent when a Python (Callback) Server is stopped
+
+Will supply the ``server`` argument, an instance of CallbackServer
+
+The sender is the CallbackServer instance.
+"""
+
+# TODO
+pre_server_shutdown = Signal()
+"""Signal sent when a Python (Callback) Server is about to shut down.
+"""
+
+# TODO
+post_server_shutdown = Signal()
+"""Signal sent when a Python (Callback) Server is shutted down.
+"""
 
 
 def set_reuse_address(server_socket):
@@ -1884,6 +1938,8 @@ class CallbackServer(object):
             logger.info(
                 "Socket listening on {0}".
                 format(smart_decode(self.server_socket.getsockname())))
+            server_started.send(
+                self, server=self)
 
             read_list = [self.server_socket]
             while not self.is_shutdown:
@@ -1909,14 +1965,20 @@ class CallbackServer(object):
                         if not self.is_shutdown:
                             self.connections.add(connection)
                             connection.start()
+                            server_connection_started.send(
+                                self, connection=connection)
                         else:
                             quiet_shutdown(connection.socket)
                             quiet_close(connection.socket)
-        except Exception:
+        except Exception as e:
             if self.is_shutdown:
                 logger.info("Error while waiting for a connection.")
             else:
+                server_connection_error.send(
+                    self, error=e)
                 logger.exception("Error while waiting for a connection.")
+
+        server_stopped.send(self, server=self)
 
     def _create_connection(self, socket_instance, stream):
         connection = CallbackConnection(
@@ -2012,6 +2074,9 @@ class CallbackConnection(Thread):
         quiet_close(self.socket)
         self.socket = None
         self.input = None
+        # TODO Change the sender once we have a hold on the server instance.
+        server_connection_stopped.send(
+            self.callback_server_parameters, connection=self)
 
     def _call_proxy(self, obj_id, input):
         return_message = proto.ERROR_RETURN_MESSAGE

@@ -178,6 +178,63 @@ class GatewayServerTest(unittest.TestCase):
             # 3 CallbackConnection. Notice the symmetry
             assert_python_memory(self, 12)
 
+    def testPythonToJavaToPythonClose(self):
+        def play_with_ping(gateway):
+            ping = InstrumentedPythonPing()
+            pingpong = gateway.jvm.py4j.examples.PingPong()
+            total = pingpong.start(ping)
+            return total
+
+        def internal_work(assert_memory):
+            gateway2 = InstrJavaGateway(
+                gateway_parameters=GatewayParameters(
+                    port=DEFAULT_PORT+5),
+                callback_server_parameters=CallbackServerParameters(
+                    port=DEFAULT_PYTHON_PROXY_PORT+5))
+            sleep()
+            play_with_ping(gateway2)
+            python_gc()
+            sleep()
+            gateway2.close(close_callback_server_connections=True,
+                           keep_callback_server=True)
+            sleep()
+            assert_memory()
+            gateway2.shutdown()
+            sleep()
+
+        with gateway_server_example_app_process():
+            gateway = JavaGateway()
+            gateway.entry_point.startServer2()
+
+            def perform_memory_tests():
+                python_gc()
+                gateway.jvm.py4j.instrumented.MetricRegistry.\
+                    forceFinalization()
+                sleep()
+                createdSet = gateway.jvm.py4j.instrumented.MetricRegistry.\
+                    getCreatedObjectsKeySet()
+                finalizedSet = gateway.jvm.py4j.instrumented.MetricRegistry.\
+                    getFinalizedObjectsKeySet()
+
+                # 10 objects: GatewayServer, 4 GatewayConnection,
+                # CallbackClient, 4 CallbackConnection
+                self.assertEqual(10, len(createdSet))
+                # 4 gateway connections, 3 callback connections.
+                # There is still one callback connection staying around.
+                # TODO find out why
+                self.assertEqual(7, len(finalizedSet))
+
+            internal_work(perform_memory_tests)
+            python_gc()
+            gateway.jvm.py4j.instrumented.MetricRegistry.forceFinalization()
+            sleep()
+            gateway.shutdown()
+            # 13 objects: JavaGateway, CallbackSerer, GatewayClient,
+            # GatewayProperty, PythonPing, 4 GatewayConnection,
+            # 4 CallbackConnection. Notice the symmetry
+            # TODO why 14?
+            assert_python_memory(self, 14)
+
     def testJavaToPythonToJavaCleanGC(self):
         def internal_work(gateway):
             hello_state = HelloState2()

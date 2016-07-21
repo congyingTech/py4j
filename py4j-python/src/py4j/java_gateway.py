@@ -1743,16 +1743,24 @@ class JavaGateway(object):
         self._callback_server = None
         self.start_callback_server(self.callback_server_parameters)
 
-    def close(self, keep_callback_server=False):
+    def close(
+            self, keep_callback_server=False,
+            close_callback_server_connections=False):
         """Closes all gateway connections. A connection will be reopened if
            necessary (e.g., if a :class:`JavaMethod` is called).
 
         :param keep_callback_server: if `True`, the callback server is not
-            shut down.
+            shut down. Mutually exclusive with
+            close_callback_server_connections.
+        :param close_callback_server_connections: if `True`, close all
+            callback server connections.
         """
         self._gateway_client.close()
+
         if not keep_callback_server:
             self.shutdown_callback_server()
+        elif close_callback_server_connections and self._callback_server:
+            self._callback_server.close()
 
     def detach(self, java_object):
         """Makes the Java Gateway dereference this object.
@@ -1985,6 +1993,14 @@ class CallbackServer(object):
             self.pool, stream, socket_instance, self.gateway_client,
             self.callback_server_parameters)
         return connection
+
+    def close(self):
+        """Closes all active callback connections
+        """
+        logger.info("Closing down callback connections from CallbackServer")
+        with self.lock:
+            for connection in self.connections:
+                quiet_close(connection)
 
     def shutdown(self):
         """Stops listening and accepting connection requests. All live

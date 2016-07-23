@@ -1736,6 +1736,28 @@ class JavaGateway(object):
                     "Exception while shutting down callback server",
                     exc_info=True)
 
+    def close_callback_server(self, raise_exception=False):
+        """Closes the
+           :class:`CallbackServer <py4j.java_callback.CallbackServer>`
+           connections.
+
+        :param raise_exception: If `True`, raise an exception if an error
+            occurs while closing the callback server connections
+            (very likely with sockets).
+        """
+        if self._callback_server is None:
+            # Nothing to shutdown
+            return
+        try:
+            self._callback_server.close()
+        except Exception:
+            if raise_exception:
+                raise
+            else:
+                logger.info(
+                    "Exception while closing callback server",
+                    exc_info=True)
+
     def restart_callback_server(self):
         """Shuts down the callback server (if started) and restarts a new one.
         """
@@ -1758,9 +1780,12 @@ class JavaGateway(object):
         self._gateway_client.close()
 
         if not keep_callback_server:
+            deprecated(
+                "JavaGateway.close.keep_callback_server", "1.0",
+                "JavaGateway.shutdown_callback_server")
             self.shutdown_callback_server()
-        elif close_callback_server_connections and self._callback_server:
-            self._callback_server.close()
+        elif close_callback_server_connections:
+            self.close_callback_server()
 
     def detach(self, java_object):
         """Makes the Java Gateway dereference this object.

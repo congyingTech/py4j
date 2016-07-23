@@ -420,6 +420,8 @@ class ClientServerConnection(object):
 
     def close(self, reset=False):
         logger.info("Closing down clientserver connection")
+        if not self.socket:
+            return
         if reset:
             set_linger(self.socket)
         quiet_close(self.stream)

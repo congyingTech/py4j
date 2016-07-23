@@ -549,10 +549,10 @@ class ClientServerTest(unittest.TestCase):
                     forceFinalization()
                 sleep()
 
-                createdSet = clientserver.jvm.py4j.instrumented.MetricRegistry.\
-                    getCreatedObjectsKeySet()
-                finalizedSet = clientserver.jvm.py4j.instrumented.MetricRegistry.\
-                    getFinalizedObjectsKeySet()
+                createdSet = clientserver.jvm.py4j.instrumented.\
+                    MetricRegistry.getCreatedObjectsKeySet()
+                finalizedSet = clientserver.jvm.py4j.instrumented.\
+                    MetricRegistry.getFinalizedObjectsKeySet()
 
                 # 6 objects: ClientServer, JavaServer,
                 # PythonClient, 3 ClientServerConnection.

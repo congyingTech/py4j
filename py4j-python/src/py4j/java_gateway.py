@@ -2127,10 +2127,12 @@ class CallbackConnection(Thread):
             quiet_shutdown(self.socket)
         quiet_close(self.input)
         quiet_close(self.socket)
+        already_closed = self.socket is None
         self.socket = None
         self.input = None
-        server_connection_stopped.send(
-            self.callback_server, connection=self)
+        if not already_closed:
+            server_connection_stopped.send(
+                self.callback_server, connection=self)
 
     def _call_proxy(self, obj_id, input):
         return_message = proto.ERROR_RETURN_MESSAGE

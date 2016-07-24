@@ -6,12 +6,14 @@ import unittest
 
 from py4j.java_gateway import (
     server_connection_started, server_connection_stopped,
-    server_started, server_stopped, pre_server_shutdown, post_server_shutdown)
+    server_started, server_stopped, pre_server_shutdown, post_server_shutdown,
+    JavaGateway, GatewayParameters, CallbackServerParameters)
 from py4j.clientserver import (
     ClientServer, JavaParameters, PythonParameters)
 from py4j.tests.client_server_test import (
     clientserver_example_app_process)
-from py4j.tests.java_callback_test import IHelloImpl
+from py4j.tests.java_callback_test import (
+    IHelloImpl, gateway_example_app_process)
 from py4j.tests.py4j_callback_recursive_example import (
     HelloState)
 
@@ -45,6 +47,39 @@ class MockListener(object):
     def post_shutdown(self, sender, **kwargs):
         self.test_case.assertTrue(kwargs["server"] is not None)
         self.received["post_shutdown"] += 1
+
+
+class JavaGatewayTest(unittest.TestCase):
+
+    def test_all_regular_signals_auto_start(self):
+        listener = MockListener(self)
+        with gateway_example_app_process(None):
+            server_started.connect(listener.started)
+            gateway = JavaGateway(
+                gateway_parameters=GatewayParameters(),
+                callback_server_parameters=CallbackServerParameters())
+            server_stopped.connect(
+                listener.stopped, sender=gateway.get_callback_server())
+            server_connection_started.connect(
+                listener.connection_started,
+                sender=gateway.get_callback_server())
+            server_connection_stopped.connect(
+                listener.connection_stopped,
+                sender=gateway.get_callback_server())
+            pre_server_shutdown.connect(
+                listener.pre_shutdown, sender=gateway.get_callback_server())
+            post_server_shutdown.connect(
+                listener.post_shutdown, sender=gateway.get_callback_server())
+            example = gateway.entry_point.getNewExample()
+            impl = IHelloImpl()
+            self.assertEqual("This is Hello!", example.callHello(impl))
+            gateway.shutdown()
+        self.assertEqual(1, listener.received["started"])
+        self.assertEqual(1, listener.received["stopped"])
+        self.assertEqual(1, listener.received["pre_shutdown"])
+        self.assertEqual(1, listener.received["post_shutdown"])
+        self.assertEqual(1, listener.received["connection_started"])
+        self.assertEqual(1, listener.received["connection_stopped"])
 
 
 class ClientServerTest(unittest.TestCase):

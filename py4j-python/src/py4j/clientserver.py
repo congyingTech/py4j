@@ -433,9 +433,11 @@ class ClientServerConnection(object):
         if not reset:
             quiet_shutdown(self.socket)
         quiet_close(self.socket)
+        already_closed = self.socket is None
         self.socket = None
         self.stream = None
-        if not self.initiated_from_client and self.python_server:
+        if not self.initiated_from_client and self.python_server and\
+                not already_closed:
             server_connection_stopped.send(
                 self.python_server, connection=self)
 

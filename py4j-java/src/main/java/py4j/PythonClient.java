@@ -210,15 +210,18 @@ public class PythonClient extends CallbackClient implements Py4JPythonClientPerT
 				minConnectionTimeUnit, socketFactory, javaServer);
 	}
 
-	@Override public void connectionError(Exception e) {
+	@Override
+	public void connectionError(Exception e) {
 
 	}
 
-	@Override public void connectionStarted(Py4JServerConnection gatewayConnection) {
+	@Override
+	public void connectionStarted(Py4JServerConnection gatewayConnection) {
 
 	}
 
-	@Override public void connectionStopped(Py4JServerConnection gatewayConnection) {
+	@Override
+	public void connectionStopped(Py4JServerConnection gatewayConnection) {
 		try {
 			// Best effort to remove connections from deque
 			// In an ideal world, we should use a lock around connections, but it could be tricky (potential deadlock?)
@@ -228,23 +231,28 @@ public class PythonClient extends CallbackClient implements Py4JPythonClientPerT
 		}
 	}
 
-	@Override public void serverError(Exception e) {
+	@Override
+	public void serverError(Exception e) {
 
 	}
 
-	@Override public void serverPostShutdown() {
+	@Override
+	public void serverPostShutdown() {
 
 	}
 
-	@Override public void serverPreShutdown() {
+	@Override
+	public void serverPreShutdown() {
 
 	}
 
-	@Override public void serverStarted() {
+	@Override
+	public void serverStarted() {
 
 	}
 
-	@Override public void serverStopped() {
+	@Override
+	public void serverStopped() {
 
 	}
 }

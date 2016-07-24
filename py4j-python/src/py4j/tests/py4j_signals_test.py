@@ -23,27 +23,27 @@ class MockListener(object):
         self.received = defaultdict(int)
 
     def started(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["server"])
+        self.test_case.assertTrue(kwargs["server"] is not None)
         self.received["started"] += 1
 
     def connection_started(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["connection"])
+        self.test_case.assertTrue(kwargs["connection"] is not None)
         self.received["connection_started"] += 1
 
     def connection_stopped(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["connection"])
+        self.test_case.assertTrue(kwargs["connection"] is not None)
         self.received["connection_stopped"] += 1
 
     def stopped(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["server"])
+        self.test_case.assertTrue(kwargs["server"] is not None)
         self.received["stopped"] += 1
 
     def pre_shutdown(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["server"])
+        self.test_case.assertTrue(kwargs["server"] is not None)
         self.received["pre_shutdown"] += 1
 
     def post_shutdown(self, sender, **kwargs):
-        self.test_case.assertIsNotNone(kwargs["server"])
+        self.test_case.assertTrue(kwargs["server"] is not None)
         self.received["post_shutdown"] += 1
 
 

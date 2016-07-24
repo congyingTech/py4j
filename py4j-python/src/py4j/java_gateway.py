@@ -925,9 +925,10 @@ class GatewayConnection(object):
         """
         if reset:
             set_linger(self.socket)
-        quiet_close(self.stream)
-        if not reset:
+        else:
+            # Sent shut down before attempting to close a stream or socket.
             quiet_shutdown(self.socket)
+        quiet_close(self.stream)
         quiet_close(self.socket)
         self.is_connected = False
 
@@ -2109,9 +2110,10 @@ class CallbackConnection(Thread):
         logger.info("Closing down callback connection")
         if reset:
             set_linger(self.socket)
-        quiet_close(self.input)
-        if not reset:
+        else:
+            # Send shutdown before closing stream and socket
             quiet_shutdown(self.socket)
+        quiet_close(self.input)
         quiet_close(self.socket)
         self.socket = None
         self.input = None

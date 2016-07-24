@@ -58,8 +58,7 @@ server_connection_stopped = Signal()
 
 Will supply the ``connection`` argument, an instance of CallbackConnection.
 
-The sender for now is the CallbackServerParameters instance. Will be the
-CallbackServer instance in future versions.
+The sender is the CallbackServer instance.
 """
 
 server_connection_started = Signal()
@@ -95,14 +94,20 @@ Will supply the ``server`` argument, an instance of CallbackServer
 The sender is the CallbackServer instance.
 """
 
-# TODO
 pre_server_shutdown = Signal()
 """Signal sent when a Python (Callback) Server is about to shut down.
+
+Will supply the ``server`` argument, an instance of CallbackServer
+
+The sender is the CallbackServer instance.
 """
 
-# TODO
 post_server_shutdown = Signal()
 """Signal sent when a Python (Callback) Server is shutted down.
+
+Will supply the ``server`` argument, an instance of CallbackServer
+
+The sender is the CallbackServer instance.
 """
 
 
@@ -2017,7 +2022,7 @@ class CallbackServer(object):
     def _create_connection(self, socket_instance, stream):
         connection = CallbackConnection(
             self.pool, stream, socket_instance, self.gateway_client,
-            self.callback_server_parameters)
+            self.callback_server_parameters, self)
         return connection
 
     def close(self):
@@ -2035,6 +2040,7 @@ class CallbackServer(object):
            This method can safely be called by another thread.
         """
         logger.info("Callback Server Shutting Down")
+        pre_server_shutdown.send(self, server=self)
         with self.lock:
             self.is_shutdown = True
             quiet_shutdown(self.server_socket)
@@ -2047,6 +2053,7 @@ class CallbackServer(object):
             self.pool.clear()
         self.thread.join()
         self.thread = None
+        post_server_shutdown.send(self, server=self)
 
 
 class CallbackConnection(Thread):
@@ -2055,16 +2062,21 @@ class CallbackConnection(Thread):
     """
     def __init__(
             self, pool, input, socket_instance, gateway_client,
-            callback_server_parameters):
+            callback_server_parameters, callback_server):
         super(CallbackConnection, self).__init__()
         self.pool = pool
         self.input = input
         self.socket = socket_instance
         self.gateway_client = gateway_client
 
+        # TODO Remove in 1.0. Take it from the callback_server directly
         self.callback_server_parameters = callback_server_parameters
+
         if not callback_server_parameters:
+            # TODO Remove in 1.0. This should never be the case.
             self.callback_server_parameters = CallbackServerParameters()
+
+        self.callback_server = callback_server
 
         self.daemon = self.callback_server_parameters.daemonize_connections
 
@@ -2117,9 +2129,8 @@ class CallbackConnection(Thread):
         quiet_close(self.socket)
         self.socket = None
         self.input = None
-        # TODO Change the sender once we have a hold on the server instance.
         server_connection_stopped.send(
-            self.callback_server_parameters, connection=self)
+            self.callback_server, connection=self)
 
     def _call_proxy(self, obj_id, input):
         return_message = proto.ERROR_RETURN_MESSAGE

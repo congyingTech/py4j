@@ -20,7 +20,8 @@ from py4j.java_gateway import (
     set_linger, GatewayClient, JavaGateway,
     CallbackServerParameters, GatewayParameters, CallbackServer,
     GatewayConnectionGuard, DEFAULT_ADDRESS, DEFAULT_PORT,
-    DEFAULT_PYTHON_PROXY_PORT, DEFAULT_ACCEPT_TIMEOUT_PLACEHOLDER)
+    DEFAULT_PYTHON_PROXY_PORT, DEFAULT_ACCEPT_TIMEOUT_PLACEHOLDER,
+    server_connection_stopped)
 from py4j import protocol as proto
 from py4j.protocol import (
     Py4JError, Py4JNetworkError, smart_decode, get_command_part,
@@ -276,7 +277,7 @@ class ClientServerConnection(object):
 
     def __init__(
             self, java_parameters, python_parameters, gateway_property,
-            java_client):
+            java_client, python_server=None):
         """
         :param java_parameters: collection of parameters and flags used to
             configure the JavaGateway (Java client)
@@ -287,6 +288,9 @@ class ClientServerConnection(object):
         :param gateway_property: used to keep gateway preferences.
 
         :param java_client: the gateway client used to call Java objects.
+
+        :param python_server: the Python server used to receive commands from
+            Java. Only provided if created from Python server.
         """
         self.java_parameters = java_parameters
         self.python_parameters = python_parameters
@@ -310,6 +314,7 @@ class ClientServerConnection(object):
         self.is_connected = False
 
         self.java_client = java_client
+        self.python_server = python_server
         self.initiated_from_client = False
 
     def _auto_gc(self, from_client=False):
@@ -430,6 +435,9 @@ class ClientServerConnection(object):
         quiet_close(self.socket)
         self.socket = None
         self.stream = None
+        if not self.initiated_from_client and self.python_server:
+            server_connection_stopped.send(
+                self.python_server, connection=self)
 
     def wait_for_commands(self):
         logger.info("Python Server ready to receive messages")

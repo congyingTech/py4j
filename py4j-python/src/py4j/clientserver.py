@@ -264,7 +264,7 @@ class PythonServer(CallbackServer):
     def _create_connection(self, socket, stream):
         connection = ClientServerConnection(
             self.java_parameters, self.python_parameters,
-            self.gateway_property, self.gateway_client)
+            self.gateway_property, self.gateway_client, python_server=self)
         connection.init_socket_from_python_server(socket, stream)
         return connection
 

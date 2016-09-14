@@ -150,8 +150,8 @@ public class ArrayCommand extends AbstractCommand {
 	private Object convertArgument(Class<?> arrayClass, Object objectToSet) {
 		Object newObject = null;
 		List<TypeConverter> converters = new ArrayList<TypeConverter>();
-		Class<?>[] parameterClasses = {arrayClass};
-		Class<?>[] argumentClasses = {objectToSet.getClass()};
+		Class<?>[] parameterClasses = { arrayClass };
+		Class<?>[] argumentClasses = { objectToSet.getClass() };
 		int cost = MethodInvoker.buildConverters(converters, parameterClasses, argumentClasses);
 
 		if (cost >= 0) {
